@@ -1,0 +1,90 @@
+// ==UserScript==
+// @name         roll20 Mass char exporter
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @description  opens then downloads then closes all characters in a roll20 game, vtt enhancement suit required
+// @author       Felix aka syl3r86
+// @match        https://app.roll20.net/editor/
+// @include       https://app.roll20.net/editor*
+// @include       https://app.roll20.net/campaigns/chatarchive*
+// @grant        none
+// ==/UserScript==
+
+/**
+  This is a script to be used in a script loader like Tampermonkey and requires the VTT Enhancement Suit
+
+  How to use:
+   1. Open Roll20 and start a game
+   2. Make sure everything is completely loaded
+   3. open your browsers console (F12) post run the command startExport();
+   4. keep the tab open while its going through the list, this might take a while
+
+   known issues:
+   you can reduce the time it takes until the script checks if it can export yet,
+   by changing the variable delay in the openSheet function. BUT make sure to leave it high enough
+   because Roll20 can get easily overwhelmed and it might not load the bio/gm notes in time
+
+   DO NOT PUT ROLL20 IN THE BACKGROUND WHILE RUNNING THIS!
+
+   if the Roll20 tab is not active it breaks opening and closing of sheets
+   and will flood you with tons of copys of the same few sheets.
+   You can open another window and have Roll20 run behind that, but make sure Roll20 is in an active Tab
+
+**/
+
+
+window.intervallID = null;
+
+window.startExport = function () {
+    var journalentrys=document.getElementsByClassName('journalitem character');
+    window.giveFeedback('Starting to export '+journalentrys.length+'characters');
+    window.openSheet(journalentrys,0);
+}
+
+window.openSheet = function(characters, position) {
+    let delay=5000;
+    window.giveFeedback('Opening sheet #'+position);
+    characters[position].click();
+    window.setTimeout(function () {
+        window.intervallID = window.setInterval(function (){
+            window.exportSheet(characters, position);
+        }, 1000);
+    },delay);
+}
+
+window.exportSheet = function(characters, position) {
+    window.giveFeedback('Trying to export #'+position);
+    var exportBtn = document.getElementsByClassName('r20es-indent');
+    if(exportBtn != undefined && exportBtn[0].firstChild != undefined) {
+        for(let i=0;i<exportBtn.length;i=i+2){
+            exportBtn[i].firstChild.click();
+        }
+        setTimeout(function () {
+            window.closeSheet(characters, position);
+        }, 250);
+    }
+}
+
+window.closeSheet = function(characters, position){
+    window.giveFeedback('Closing sheet #'+position);
+    var closebtn=document.getElementsByClassName('ui-dialog-titlebar-close ui-corner-all');
+    for(let btn of closebtn) {
+        btn.click();
+    }
+    clearInterval(window.intervallID);
+    position++;
+    if(position<characters.length){
+        window.setTimeout(function () {
+            window.openSheet(characters, position);
+        }, 1000);
+    }
+}
+
+window.giveFeedback = function(feedback){
+    console.log('*****************************');
+    console.log('*  '+feedback+'  *');
+    console.log('*****************************');
+}
+
+var myFunctions = window.myFunctions = {};
+myFunctions.startExport = window.startExport;
